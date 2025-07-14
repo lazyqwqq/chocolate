@@ -1,0 +1,13 @@
+{
+  "name": "chocolate-bot",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.4.5",
+    "luxon": "^3.4.4"
+  }
+}
