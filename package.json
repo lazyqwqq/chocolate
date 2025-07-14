@@ -1,14 +1,13 @@
 {
-  "name": "chocolate-bot",
+  "name": "discordbot",
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
-  "license": "MIT",
   "dependencies": {
-    "discord.js": "^14.14.1",
-    "dotenv": "^16.4.5",
-    "luxon": "^3.4.4"
+    "discord.js": "^14.0.0",
+    "dotenv": "^16.0.0",
+    "luxon": "^3.0.0"
   }
 }
