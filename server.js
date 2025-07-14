@@ -19,7 +19,7 @@ require('dotenv').config();
      client.once('ready', async () => {
        console.log('✅ Bot is ready.');
        // コマンドを登録
-       //await registerGlobalCommands();
+       await registerGlobalCommands();
      });
 
      client.on('messageCreate', message => {
