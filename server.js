@@ -732,3 +732,14 @@ async function updateLotteryEmbed(channel, eventId, event) {
 }
 
 client.login(TOKEN);
+
+// 定期的にリクエストを送信
+setInterval(() => {
+  const http = require('http');
+
+  http.get(`http://localhost:${port}`, (res) => {
+    console.log(`定期リクエスト: ステータスコード ${res.statusCode}`);
+  }).on('error', (err) => {
+    console.error(`リクエストエラー: ${err.message}`);
+  });
+}, 300000); // 5分ごとに実行
