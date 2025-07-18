@@ -435,13 +435,13 @@ client.on('interactionCreate', async interaction => {
     }
 
     const inventory = userData.inventory ?? [];
-    const result = [`📦 <@${targetUser.id}> のイン�ベントリ:`];
+    const result = [`📦 <@${targetUser.id}> 's inventory:`];
 
     for (const item of inventory) {
       result.push(`・${item.name} ×${item.count}`);
     }
 
-    result.push(`\n📊 スコア:`);
+    result.push(`\n📊 score:`);
     for (const key of Object.keys(userData)) {
       if (key.startsWith('score-')) {
         result.push(`・${key}: ${userData[key]}`);
