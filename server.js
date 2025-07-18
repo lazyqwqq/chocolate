@@ -21,32 +21,28 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers
   ]
 });
 
 client.once('ready', async () => {
   console.log('✅ Bot is ready.');
-  // コマンドを登録
-  //await registerGlobalCommands();
 });
 
 client.on('messageCreate', message => {
   if (message.author.bot) return;
-
 });
-
-// スラッシュコマンドの処理
 
 client.on('interactionCreate', async interaction => {
   if (interaction.commandName === 'create-lottery') {
     const title = interaction.options.getString('title');
     const endtimeStr = interaction.options.getString('endtime');
-    let endsAt
+    let endsAt;
     try {
       endsAt = parseJSTDate(endtimeStr);
     } catch (error) {
-      console.log(error)
+      console.log(error);
       return interaction.reply({
         content: `❌ 終了日時の形式が不正です。\n有効な形式: \`YYYY-MM-DD HH:mm\`、\`MM-DD HH:mm\`、\`HH:mm\`\n例: \`2025-06-01 18:00\``,
         flags: MessageFlags.Ephemeral
@@ -56,7 +52,6 @@ client.on('interactionCreate', async interaction => {
     const formatted = `<t:${unixSeconds}:f>`;
     const rqBiome = interaction.options.getString('rqbiome');
     const rqScore = interaction.options.getNumber('rqscore');
-
 
     const eventId = `${interaction.id}-${Date.now()}`;
 
@@ -79,11 +74,10 @@ client.on('interactionCreate', async interaction => {
         inline: false
       })
       .setColor('#00b0f4')
-      .setFooter({ text: eventId })
+      .setFooter({ text: eventId });
     const sent = await interaction.reply({components: [row], embeds: [embed], fetchReply: true });
     lotteryData[eventId].messageId = sent.id;
     fs.writeFileSync('lottery.json', JSON.stringify(lotteryData, null, 2), 'utf-8');
-
   }
 
   if (interaction.commandName === 'draw-winner') {
@@ -110,29 +104,28 @@ client.on('interactionCreate', async interaction => {
       return interaction.reply('📭 応募者がいませんでした。');
     }
 
-const lurer = Array.isArray(event.lurer) ? event.lurer.filter(id => participants.includes(id)) : [];
-const prioritized = Array.isArray(event.prioritized) ? event.prioritized.filter(id => participants.includes(id) && !lurer.includes(id)) : [];
-const others = participants.filter(id => !lurer.includes(id) && !prioritized.includes(id));
-const shuffledOthers = others.sort(() => 0.5 - Math.random());
+    const lurer = Array.isArray(event.lurer) ? event.lurer.filter(id => participants.includes(id)) : [];
+    const prioritized = Array.isArray(event.prioritized) ? event.prioritized.filter(id => participants.includes(id) && !lurer.includes(id)) : [];
+    const others = participants.filter(id => !lurer.includes(id) && !prioritized.includes(id));
+    const shuffledOthers = others.sort(() => 0.5 - Math.random());
 
-let winners = [];
+    let winners = [];
 
-if (!winnerCount || winnerCount >= participants.length) {
-  winners = [...lurer, ...prioritized, ...shuffledOthers];
-} else {
-  winners = [...lurer];
-  const remainingAfterSpecial = winnerCount - winners.length;
-  
-  if (remainingAfterSpecial > 0) {
-    winners.push(...prioritized.slice(0, remainingAfterSpecial));
-    const remainingAfterPrioritized = winnerCount - winners.length;
+    if (!winnerCount || winnerCount >= participants.length) {
+      winners = [...lurer, ...prioritized, ...shuffledOthers];
+    } else {
+      winners = [...lurer];
+      const remainingAfterSpecial = winnerCount - winners.length;
+      
+      if (remainingAfterSpecial > 0) {
+        winners.push(...prioritized.slice(0, remainingAfterSpecial));
+        const remainingAfterPrioritized = winnerCount - winners.length;
 
-    if (remainingAfterPrioritized > 0) {
-      winners.push(...shuffledOthers.slice(0, remainingAfterPrioritized));
+        if (remainingAfterPrioritized > 0) {
+          winners.push(...shuffledOthers.slice(0, remainingAfterPrioritized));
+        }
+      }
     }
-  }
-}
-
 
     const losers = participants.filter(id => !winners.includes(id));
     event.winners = winners;
@@ -142,7 +135,8 @@ if (!winnerCount || winnerCount >= participants.length) {
     
     await interaction.reply({
       content:`🎊 **${event.title}** の抽選結果: \n🏆 **当選者（${winners.length}名）**: \n${winners.map(id => `・<@${id}>`).join(' ')} \n😢 **落選者（${losers.length}名）**:\n${losers.length > 0 ? losers.map(id => `・<@${id}>`).join(' ') : '（なし）'}`,
-      allowedMentions: { users: [] }});
+      allowedMentions: { users: [] }
+    });
   }
   
   if (interaction.isButton() && interaction.customId.startsWith('lottery_')) {
@@ -160,25 +154,24 @@ if (!winnerCount || winnerCount >= participants.length) {
       return interaction.reply({ content: '⌛ 応募期間は終了しています。', flags: MessageFlags.Ephemeral });
     }
 
-  if (event.rqScore && event.rqBiome) {
-    const scoreData = fs.existsSync('score.json') ? JSON.parse(fs.readFileSync('score.json', 'utf-8')) : {};
-    const userData = scoreData[interaction.user.id];
+    if (event.rqScore && event.rqBiome) {
+      const scoreData = fs.existsSync('score.json') ? JSON.parse(fs.readFileSync('score.json', 'utf-8')) : {};
+      const userData = scoreData[interaction.user.id];
 
-    const biomeKey = `score-${event.rqBiome}`;
-    const userScore = userData?.[biomeKey] ?? 0;
+      const biomeKey = `score-${event.rqBiome}`;
+      const userScore = userData?.[biomeKey] ?? 0;
 
-    if (userScore < event.rqScore) {
-    return interaction.reply({
-        content: `❌ あなたのスコア（${userScore}）は、このイベントの条件（${event.rqBiome}: ${event.rqScore}）を満たしていません。`,
-        flags: MessageFlags.Ephemeral
-      });
-    }
-  } 
+      if (userScore < event.rqScore) {
+        return interaction.reply({
+          content: `❌ あなたのスコア（${userScore}）は、このイベントの条件（${event.rqBiome}: ${event.rqScore}）を満たしていません。`,
+          flags: MessageFlags.Ephemeral
+        });
+      }
+    } 
 
     const alreadyApplied = event.participants.includes(interaction.user.id);
 
     if (alreadyApplied) {
-      // 応募済みならキャンセル用ボタンを表示
       const cancelButton = new ButtonBuilder()
         .setCustomId(`cancel_${eventId}`)
         .setLabel('❌ 応募を取り消す')
@@ -192,14 +185,10 @@ if (!winnerCount || winnerCount >= participants.length) {
         flags: MessageFlags.Ephemeral
       });
     } else {
-      // 応募処理
       event.participants.push(interaction.user.id);
-      // 埋め込み更新
       await updateLotteryEmbed(interaction.channel, eventId, event);
       fs.writeFileSync('lottery.json', JSON.stringify(lotteryData, null, 2), 'utf-8');
       return interaction.reply({ content: '✅ 応募を受け付けました！', flags: MessageFlags.Ephemeral });
-      
-    
     }
   }
 
@@ -258,19 +247,14 @@ if (!winnerCount || winnerCount >= participants.length) {
 
     const sortedEggUsers = [...eggUsers].sort((a, b) => b.egg - a.egg);
 
-    // 最大3人をsquad1へ
     squad1.push(...sortedEggUsers.slice(0, 3));
-
-      // 4人目以降をsquad2へ
     squad2.push(...sortedEggUsers.slice(3));
 
-    // 残りの人（egg=0）+ 分配しきれなかったeggの人）でスコアバランス分け
     const remaining = nonEggUsers.concat(
       sortedEggUsers.length > 3 ? [] : sortedEggUsers.slice(squad1.length)
     );
     const sorted = [...remaining].sort((a, b) => b.score - a.score);
 
-    // スコアバランスを考慮して squad1/squad2 に振り分け
     while ((squad1.length < 3 || squad2.length < 3) && sorted.length > 0) {
       const sum1 = squad1.reduce((s, u) => s + u.score, 0);
       const sum2 = squad2.reduce((s, u) => s + u.score, 0);
@@ -290,109 +274,130 @@ if (!winnerCount || winnerCount >= participants.length) {
 
   if (interaction.commandName === 'update-inventory') {
     const input = interaction.options.getString('petal');
-  const targetUser = interaction.options.getUser('user') ?? interaction.user;
+    const targetUser = interaction.options.getUser('user') ?? interaction.user;
 
-  // 他人の更新には権限が必要
-  if (targetUser.id !== interaction.user.id && !allowedUserIds.includes(interaction.user.id)) {
-    return interaction.reply({ content: '❌ 他ユーザーの装備を更新する権限がありません。', flags: MessageFlags.Ephemeral });
-  }
-
-  const entries = input.split(',').map(e => e.trim());
-  const equipmentData = JSON.parse(fs.readFileSync('equipment.json', 'utf-8'));
-
-  const inventory = [];
-  const errors = [];
-  const seen = new Set();
-  
-  for (const entry of entries) {
-    const match = entry.match(/(Ultra|Super|Unique)\s+([a-zA-Z_]+)\s+(\d+)/i);
-    if (!match) {
-      errors.push(`❌ フォーマットエラー: "${entry}"`);
-      continue;
+    if (targetUser.id !== interaction.user.id && !allowedUserIds.includes(interaction.user.id)) {
+      return interaction.reply({ content: '❌ 他ユーザーの装備を更新する権限がありません。', flags: MessageFlags.Ephemeral });
     }
 
-    const [, rarity, type, countStr] = match;
-    const key = `${rarity.charAt(0).toUpperCase() + rarity.slice(1).toLowerCase()} ${type}`;
-    const count = parseInt(countStr, 10);
+    const entries = input.split(',').map(e => e.trim());
+    const equipmentData = JSON.parse(fs.readFileSync('equipment.json', 'utf-8'));
 
-    // 重複チェック
-    if (seen.has(key)) {
-      errors.push(`❌ 重複した装備があります: ${key}`);
-      continue;
+    const inventory = [];
+    const errors = [];
+    const seen = new Set();
+    
+    for (const entry of entries) {
+      const match = entry.match(/(Ultra|Super|Unique)\s+([a-zA-Z_]+)\s+(\d+)/i);
+      if (!match) {
+        errors.push(`❌ フォーマットエラー: "${entry}"`);
+        continue;
+      }
+
+      const [, rarity, type, countStr] = match;
+      const key = `${rarity.charAt(0).toUpperCase() + rarity.slice(1).toLowerCase()} ${type}`;
+      const count = parseInt(countStr, 10);
+
+      if (seen.has(key)) {
+        errors.push(`❌ 重複した装備があります: ${key}`);
+        continue;
+      }
+      seen.add(key);
+
+      if (!(key in equipmentData)) {
+        errors.push(`❌ 未知の装備: "${key}"`);
+        continue;
+      }
+
+      if (count == 0) {
+        errors.push(`❌ 所持数エラー: ${entry}`);
+        continue;
+      }
+
+      inventory.push({ name: key, count });
     }
-    seen.add(key);
 
-    if (!(key in equipmentData)) {
-      errors.push(`❌ 未知の装備: "${key}"`);
-      continue;
+    if (errors.length > 0) {
+      return interaction.reply({ content: errors.join('\n'), flags: MessageFlags.Ephemeral });
     }
 
-    if (count == 0){
-      errors.push(`❌ 所持数エラー: ${entry}`)
+    const BIOME_SLOT_LIMITS = {
+      "Fire Ant Hell": 8,
+      "Normal Ant Hell": 7,
+      "Desert": 8,
+      "Ocean": 5
+    };
+
+    const biomeScores = {};
+    const biomeDetails = {};
+
+    for (const [biome, limit] of Object.entries(BIOME_SLOT_LIMITS)) {
+      const result = getMaxScoreGreedy(inventory, biome, equipmentData, limit);
+      biomeScores[`score-${biome}`] = result.score;
+      biomeDetails[biome] = result;
     }
 
-    inventory.push({ name: key, count });
+    const scoreData = fs.existsSync('score.json') ? JSON.parse(fs.readFileSync('score.json', 'utf-8')) : {};
+    if (!scoreData[targetUser.id]) scoreData[targetUser.id] = {};
+
+    scoreData[targetUser.id] = {
+      ...scoreData[targetUser.id],
+      ...biomeScores,
+      inventory
+    };
+
+    fs.writeFileSync('score.json', JSON.stringify(scoreData, null, 2), 'utf-8');
+
+    if (
+      interaction.guildId === '1393810613339422842' && 
+      interaction.channelId === '1393835000700600421' &&
+      targetUser.id === '1394213421326667818'
+    ) {
+      try {
+        const guild = await client.guilds.fetch('1393810613339422842');
+        const member = await guild.members.fetch(targetUser.id);
+        
+        const oendPlus5RoleId = '1393811355420852266'; 
+        const fahPlus10RoleId = '1393811512384032768'; 
+
+        for (const [biome, score] of Object.entries(biomeScores)) {
+          if (score >= 5) {
+            await member.roles.add(oendPlus5RoleId).catch(console.error);
+          }
+          if (score >= 10) {
+            await member.roles.add(fahPlus10RoleId).catch(console.error);
+          }
+        }
+      } catch (error) {
+        console.error('ロール付与エラー:', error);
+        await interaction.followUp({ 
+          content: '⚠️ ロールの付与中にエラーが発生しました。管理者にお問い合わせください。', 
+          flags: MessageFlags.Ephemeral 
+        });
+      }
+    }
+
+    const result = [`✅ Updated <@${targetUser.id}>'s inventory!`, `📦 Inventory:`];
+
+    for (const i of inventory) {
+      result.push(`・${i.name} ×${i.count}`);
+    }
+
+    result.push(`\n📊 score:`);
+    for (const [biome, detail] of Object.entries(biomeDetails)) {
+      const label = `score-${biome}`;
+      const itemsText = Object.entries(detail.usedItems)
+        .map(([name, count]) => `${name} x${count}`)
+        .join(', ');
+      result.push(`・${label}: ${detail.score} (${detail.usedSlots}) \`\`${itemsText}\`\``);
+    }
+
+    return interaction.reply({ content: result.join('\n'), allowedMentions: { users: [] }});
   }
-
-  if (errors.length > 0) {
-    return interaction.reply({ content: errors.join('\n'), flags: MessageFlags.Ephemeral });
-  }
-
-  // スコア計算関数
-
-
-  // Biome別使用枠制限
-  const BIOME_SLOT_LIMITS = {
-    "Fire Ant Hell": 8,
-    "Normal Ant Hell": 7,
-    "Desert": 8,
-    "Ocean": 5
-  };
-
-  const biomeScores = {};
-  const biomeDetails = {};
-
-  for (const [biome, limit] of Object.entries(BIOME_SLOT_LIMITS)) {
-    const result = getMaxScoreGreedy(inventory, biome, equipmentData, limit);
-    biomeScores[`score-${biome}`] = result.score;
-    biomeDetails[biome] = result; // ← usedItems, usedSlots含む
-  }
-
-
-  // 保存処理
-  const scoreData = fs.existsSync('score.json') ? JSON.parse(fs.readFileSync('score.json', 'utf-8')) : {};
-  if (!scoreData[targetUser.id]) scoreData[targetUser.id] = {};
-
-  scoreData[targetUser.id] = {
-    ...scoreData[targetUser.id],
-    ...biomeScores,
-    inventory
-  };
-
-  fs.writeFileSync('score.json', JSON.stringify(scoreData, null, 2), 'utf-8');
-
-  const result = [`✅ Updated <@${targetUser.id}>'s inventory!`, `📦 Inventory:`];
-
-  for (const i of inventory) {
-    result.push(`・${i.name} ×${i.count}`);
-  }
-
-  result.push(`\n📊 score:`);
-  for (const [biome, detail] of Object.entries(biomeDetails)) {
-    const label = `score-${biome}`;
-    const itemsText = Object.entries(detail.usedItems)
-      .map(([name, count]) => `${name} x${count}`)
-      .join(', ');
-    result.push(`・${label}: ${detail.score} (${detail.usedSlots}) \`\`${itemsText}\`\``);
-  }
-
-  return interaction.reply({ content: result.join('\n'), allowedMentions: { users: [] }});
-}
 
   if (interaction.commandName === 'show-inventory') {
     const targetUser = interaction.options.getUser('user') ?? interaction.user;
 
-    // 他人のインベントリ表示には権限が必要
     if (targetUser.id !== interaction.user.id && !allowedUserIds.includes(interaction.user.id)) {
       return interaction.reply({ content: '❌ 他人のインベントリを見る権限がありません。', flags: MessageFlags.Ephemeral });
     }
@@ -421,7 +426,6 @@ if (!winnerCount || winnerCount >= participants.length) {
     return interaction.reply({ content: result.join('\n'), allowedMentions: { users: [] }, flags: MessageFlags.Ephemeral});
   }
 
-  //使用権原必要なコマンド
   if (interaction.commandName === 'prioritize') {
     if (!allowedUserIds.includes(interaction.user.id)) {
       await interaction.reply({ content: '❌ あなたにはこのコマンドの使用権限がありません。', flags: MessageFlags.Ephemeral });
@@ -460,8 +464,8 @@ if (!winnerCount || winnerCount >= participants.length) {
       return interaction.reply({ content: '❌ あなたにはこのコマンドの使用権限がありません。', flags: MessageFlags.Ephemeral });
     }
 
-    const at = interaction.options.getString('at'); // participants / winners / prioritized / lurer
-    const edit = interaction.options.getString('edit'); // add / remove
+    const at = interaction.options.getString('at');
+    const edit = interaction.options.getString('edit');
     const eventId = interaction.options.getString('id');
     const user = interaction.options.getUser('user');
 
@@ -480,8 +484,8 @@ if (!winnerCount || winnerCount >= participants.length) {
 
     let response = '';
 
-    if (at === 'prioritize') {
-      if (!list) list = [];
+    if (at === 'prioritized') {
+      if (!event.prioritized) event.prioritized = [];
     }
 
     if (edit === 'add') {
@@ -502,10 +506,9 @@ if (!winnerCount || winnerCount >= participants.length) {
 
     fs.writeFileSync('lottery.json', JSON.stringify(lotteryData, null, 2), 'utf-8');
     return interaction.reply({ content: response, allowedMentions: { users: [] }});
-  } 
+  }
 });
 
-// グローバルスラッシュコマンド
 async function registerGlobalCommands() {
   const commands = [
     new SlashCommandBuilder()
@@ -576,7 +579,7 @@ async function registerGlobalCommands() {
           { name: 'participants', value: 'participants' },
           { name: 'winners', value: 'winners' },
           { name: 'x3', value: 'prioritized' },
-          { name: 'lurer', value : 'lurer'},
+          { name: 'lurer', value: 'lurer'},
           { name: '-1', value: '-1'}
         )
       )
@@ -588,6 +591,7 @@ async function registerGlobalCommands() {
           ))
       .addUserOption(opt =>
         opt.setName('user').setDescription('対象ユーザー').setRequired(true)),
+
     new SlashCommandBuilder()
       .setName('show-inventory')
       .setDescription('インベントリを表示する')
@@ -595,8 +599,7 @@ async function registerGlobalCommands() {
         opt.setName('user')
           .setDescription('表示対象ユーザー')
           .setRequired(false)
-  ),
-
+      ),
   ].map(cmd => cmd.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(TOKEN);
@@ -615,15 +618,12 @@ function parseJSTDate(inputStr) {
 
   let dt;
 
-  // パターン1: YYYY-MM-DD HH:mm
   if (/^\d{4}-\d{1,2}-\d{1,2} \d{1,2}:\d{1,2}$/.test(inputStr)) {
     dt = DateTime.fromFormat(inputStr, 'yyyy-M-d H:m', { zone: 'Asia/Tokyo' });
   }
-  // パターン2: MM-DD HH:mm（年は現在年）
   else if (/^\d{1,2}-\d{1,2} \d{1,2}:\d{1,2}$/.test(inputStr)) {
     dt = DateTime.fromFormat(`${now.year}-${inputStr}`, 'yyyy-M-d H:m', { zone: 'Asia/Tokyo' });
   }
-  // パターン3: HH:mm（年月日は現在の日付）
   else if (/^\d{1,2}:\d{1,2}$/.test(inputStr)) {
     dt = DateTime.fromFormat(`${now.toFormat('yyyy-MM-dd')} ${inputStr}`, 'yyyy-MM-dd H:m', { zone: 'Asia/Tokyo' });
   }
@@ -678,7 +678,6 @@ function getMaxScoreGreedy(inventory, biome, equipmentData, slotLimit) {
     }
   }
 
-  // 最終スコア計算（効果込み）
   let totalScore = 0;
   for (const equip of selected) {
     const base = equipmentData[equip]?.scores?.[biome] ?? 0;
@@ -701,7 +700,6 @@ async function updateLotteryEmbed(channel, eventId, event) {
   const prioritized = new Set(event.prioritized ?? []);
   const lurer = new Set(event.lurer ?? []);
 
-  // 優先順を定義：special → prioritized → regular
   const lurerList = [...allParticipants].filter(id => lurer.has(id));
   const prioritizedList = [...allParticipants].filter(id => prioritized.has(id) && !lurer.has(id));
   const regularList = [...allParticipants].filter(id => !prioritized.has(id) && !lurer.has(id));
@@ -726,10 +724,9 @@ async function updateLotteryEmbed(channel, eventId, event) {
       inline: false
     })
     .setColor('#00b0f4')
-    .setFooter({ text: eventId })
+    .setFooter({ text: eventId });
 
   await message.edit({ embeds: [embed], fetchReply: true });
 }
 
 client.login(TOKEN);
-
