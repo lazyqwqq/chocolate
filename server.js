@@ -151,7 +151,7 @@ client.on('interactionCreate', async interaction => {
     const now = new Date();
     const endDate = new Date(event.endsAt);
     if (now > endDate) {
-      return interaction.reply({ content: '⌛ 応募期間は終了しています。', flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: '⌛ 応募期間は終了しています10。', flags: MessageFlags.Ephemeral });
     }
 
     if (event.rqScore && event.rqBiome) {
@@ -348,17 +348,17 @@ client.on('interactionCreate', async interaction => {
 
     fs.writeFileSync('score.json', JSON.stringify(scoreData, null, 2), 'utf-8');
 
+    // ロール付与ロジック
     if (
       interaction.guildId === '1393810613339422842' && 
-      interaction.channelId === '1393835000700600421' &&
-      targetUser.id === '1394213421326667818'
+      interaction.channelId === '1393835000700600421'
     ) {
       try {
         const guild = await client.guilds.fetch('1393810613339422842');
         const member = await guild.members.fetch(targetUser.id);
         
-        const oendPlus5RoleId = '1393811355420852266'; 
-        const fahPlus10RoleId = '1393811512384032768'; 
+        const oendPlus5RoleId = '1393811355420852266'; // 実際のロールIDに置き換える
+        const fahPlus10RoleId = '1393811512384032768'; // 実際のロールIDに置き換える
 
         for (const [biome, score] of Object.entries(biomeScores)) {
           if (score >= 5) {
