@@ -14,7 +14,7 @@ require('dotenv').config();
 const fs = require('fs');
 const {DateTime} = require('luxon');
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags, EmbedBuilder } = require('discord.js');
-const TOKEN = process.env.TOKEN, CLIENT_ID = process.env.CLIENT_ID
+const TOKEN = process.env.TOKEN, CLIENT_ID = process.env.CLIENT_ID;
 const {allowedUserIds, lurerUserIds} = require('./config.json');
 
 const client = new Client({
@@ -28,13 +28,31 @@ const client = new Client({
 
 client.once('ready', async () => {
   console.log('✅ Bot is ready.');
+  // config.jsonの検証
+  if (!allowedUserIds || !Array.isArray(allowedUserIds) || allowedUserIds.length === 0) {
+    console.error('⚠️ config.jsonのallowedUserIdsが空または不正です:', allowedUserIds);
+  } else {
+    console.log('✅ allowedUserIds:', allowedUserIds);
+  }
 });
 
 client.on('messageCreate', message => {
   if (message.author.bot) return;
 });
 
+// 権限チェック関数
+function hasPermission(userId) {
+  const allowed = allowedUserIds.includes(userId);
+  console.log(`権限チェック: ユーザー=${userId}, 許可=${allowed}`);
+  return allowed;
+}
+
 client.on('interactionCreate', async interaction => {
+  // /show-inventory以外のコマンドに権限チェックを適用
+  if (interaction.commandName !== 'show-inventory' && !hasPermission(interaction.user.id)) {
+    return interaction.reply({ content: '❌ このコマンドを使用する権限がありません。', flags: MessageFlags.Ephemeral });
+  }
+
   if (interaction.commandName === 'create-lottery') {
     const title = interaction.options.getString('title');
     const endtimeStr = interaction.options.getString('endtime');
@@ -276,7 +294,8 @@ client.on('interactionCreate', async interaction => {
     const input = interaction.options.getString('petal');
     const targetUser = interaction.options.getUser('user') ?? interaction.user;
 
-    if (targetUser.id !== interaction.user.id && !allowedUserIds.includes(interaction.user.id)) {
+    // 他ユーザーの更新はallowedUserIdsに限定
+    if (targetUser.id !== interaction.user.id && !hasPermission(interaction.user.id)) {
       return interaction.reply({ content: '❌ 他ユーザーの装備を更新する権限がありません。', flags: MessageFlags.Ephemeral });
     }
 
@@ -358,8 +377,8 @@ client.on('interactionCreate', async interaction => {
         const guild = await client.guilds.fetch('1393810613339422842');
         const member = await guild.members.fetch(targetUser.id);
         
-        const oendPlus5RoleId = '1393811355420852266'; // 実際のロールIDに置き換える
-        const fahPlus10RoleId = '1393811512384032768'; // 実際のロールIDに置き換える
+        const oendPlus5RoleId = '1393811355420852266';
+        const fahPlus10RoleId = '1393811512384032768';
 
         for (const [biome, score] of Object.entries(biomeScores)) {
           console.log(`バイオーム=${biome}, スコア=${score}`);
@@ -408,10 +427,6 @@ client.on('interactionCreate', async interaction => {
   if (interaction.commandName === 'show-inventory') {
     const targetUser = interaction.options.getUser('user') ?? interaction.user;
 
-    if (targetUser.id !== interaction.user.id && !allowedUserIds.includes(interaction.user.id)) {
-      return interaction.reply({ content: '❌ 他人のインベントリを見る権限がありません。', flags: MessageFlags.Ephemeral });
-    }
-
     const scoreData = fs.existsSync('score.json') ? JSON.parse(fs.readFileSync('score.json', 'utf-8')) : {};
     const userData = scoreData[targetUser.id];
 
@@ -420,7 +435,7 @@ client.on('interactionCreate', async interaction => {
     }
 
     const inventory = userData.inventory ?? [];
-    const result = [`📦 <@${targetUser.id}> のインベントリ:`];
+    const result = [`📦 <@${targetUser.id}> のイン�ベントリ:`];
 
     for (const item of inventory) {
       result.push(`・${item.name} ×${item.count}`);
@@ -433,14 +448,10 @@ client.on('interactionCreate', async interaction => {
       }
     }
 
-    return interaction.reply({ content: result.join('\n'), allowedMentions: { users: [] }, flags: MessageFlags.Ephemeral});
+    return interaction.reply({ content: result.join('\n'), allowedMentions: { users: [] }, flags: MessageFlags.Ephemeral });
   }
 
   if (interaction.commandName === 'prioritize') {
-    if (!allowedUserIds.includes(interaction.user.id)) {
-      await interaction.reply({ content: '❌ あなたにはこのコマンドの使用権限がありません。', flags: MessageFlags.Ephemeral });
-      return;
-    }
     const eventId = interaction.options.getString('eventid');
     const user = interaction.options.getUser('user');
 
@@ -470,10 +481,6 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.commandName === 'lottery') {
-    if (!allowedUserIds.includes(interaction.user.id)) {
-      return interaction.reply({ content: '❌ あなたにはこのコマンドの使用権限がありません。', flags: MessageFlags.Ephemeral });
-    }
-
     const at = interaction.options.getString('at');
     const edit = interaction.options.getString('edit');
     const eventId = interaction.options.getString('id');
@@ -554,13 +561,11 @@ async function registerGlobalCommands() {
       .addStringOption(option => 
         option.setName('petal')
           .setDescription('ペタル')
-          .setRequired(true)
-      )
+          .setRequired(true))
       .addUserOption(option => 
         option.setName('user')
           .setDescription('ユーザー')
-          .setRequired(true)
-      ),
+          .setRequired(true)),
 
     new SlashCommandBuilder()
       .setName('create-squad')
@@ -591,8 +596,7 @@ async function registerGlobalCommands() {
           { name: 'x3', value: 'prioritized' },
           { name: 'lurer', value: 'lurer'},
           { name: '-1', value: '-1'}
-        )
-      )
+        ))
       .addStringOption(opt =>
         opt.setName('edit').setDescription('操作内容').setRequired(true)
           .addChoices(
@@ -608,8 +612,7 @@ async function registerGlobalCommands() {
       .addUserOption(opt =>
         opt.setName('user')
           .setDescription('表示対象ユーザー')
-          .setRequired(false)
-      ),
+          .setRequired(false))
   ].map(cmd => cmd.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(TOKEN);
