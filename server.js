@@ -30,6 +30,9 @@ client.once('ready', async () => {
   console.log('✅ Bot is ready.');
   // config.jsonの検証
   if (!allowedUserIds || !Array.isArray(allowedUserIds) || allowedUserIds.length === 0) {
+
+await registerGlobalCommands();
+});
     console.error('⚠️ config.jsonのallowedUserIdsが空または不正です:', allowedUserIds);
   } else {
     console.log('✅ allowedUserIds:', allowedUserIds);
