@@ -48,8 +48,10 @@ function hasPermission(userId) {
 }
 
 client.on('interactionCreate', async interaction => {
-  // /show-inventory以外のコマンドに権限チェックを適用
-  if (interaction.commandName !== 'show-inventory' && !hasPermission(interaction.user.id)) {
+  // ボタンインタラクションまたは/show-inventoryは権限チェックをスキップ
+  if (interaction.isButton()) {
+    console.log(`ボタンインタラクション: ユーザー=${interaction.user.id}, カスタムID=${interaction.customId}`);
+  } else if (interaction.isCommand() && interaction.commandName !== 'show-inventory' && !hasPermission(interaction.user.id)) {
     return interaction.reply({ content: '❌ このコマンドを使用する権限がありません。', flags: MessageFlags.Ephemeral });
   }
 
@@ -219,6 +221,7 @@ client.on('interactionCreate', async interaction => {
       return interaction.reply({ content: '❌ イベントが存在しません。', flags: MessageFlags.Ephemeral });
     }
 
+ ipsa
     const index = event.participants.indexOf(interaction.user.id);
     if (index === -1) {
       return interaction.reply({ content: '❓ 応募していないため、取り消せません。', flags: MessageFlags.Ephemeral });
@@ -435,13 +438,13 @@ client.on('interactionCreate', async interaction => {
     }
 
     const inventory = userData.inventory ?? [];
-    const result = [`📦 <@${targetUser.id}> 's inventory:`];
+    const result = [`📦 <@${targetUser.id}> のインベントリ:`];
 
     for (const item of inventory) {
       result.push(`・${item.name} ×${item.count}`);
     }
 
-    result.push(`\n📊 score:`);
+    result.push(`\n📊 スコア:`);
     for (const key of Object.keys(userData)) {
       if (key.startsWith('score-')) {
         result.push(`・${key}: ${userData[key]}`);
