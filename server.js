@@ -775,6 +775,14 @@ async function registerGlobalCommands() {
         opt.setName('user').setDescription('対象ユーザー').setRequired(true)),
 
     new SlashCommandBuilder()
+  .setName('prioritize')
+  .setDescription('抽選イベントでユーザーを優先対象に設定する')
+  .addStringOption(opt =>
+    opt.setName('eventid').setDescription('イベントID').setRequired(true))
+  .addUserOption(opt =>
+    opt.setName('user').setDescription('優先対象ユーザー').setRequired(true)),
+
+    new SlashCommandBuilder()
       .setName('show-inventory')
       .setDescription('インベントリを表示する')
       .addUserOption(opt =>
