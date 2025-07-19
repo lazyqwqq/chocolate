@@ -35,7 +35,7 @@ client.once('ready', async () => {
     console.log('✅ allowedUserIds:', allowedUserIds);
   }
   console.log('DEBUG: ここまで実行'); // 既存のデバッグログ
-  await registerGlobalCommands(); // ここを追加
+  // await registerGlobalCommands(); // ここを追加
 });
 
 // エラーハンドリング
