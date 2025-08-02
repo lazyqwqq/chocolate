@@ -28,17 +28,24 @@ const client = new Client({
 
 client.once('ready', async () => {
   console.log('✅ Bot is ready.');
-  // config.jsonの検証
   if (!allowedUserIds || !Array.isArray(allowedUserIds) || allowedUserIds.length === 0) {
     console.error('⚠️ config.jsonのallowedUserIdsが空または不正です:', allowedUserIds);
   } else {
     console.log('✅ allowedUserIds:', allowedUserIds);
   }
-  console.log('DEBUG: ここまで実行'); // 既存のデバッグログ
-  // await registerGlobalCommands(); // ここを追加
+  console.log('DEBUG: ここまで実行'); 
+  // await registerGlobalCommands(); 
 });
 
-// エラーハンドリング
+
+function getDisplayName(name) {
+  const priorityEmoji = '🔶'; // 優先
+  const normalEmoji = '🔷';   // 一般
+  if (name.includes(':00:')) return `${priorityEmoji} ${name.replace(':00:', '').trim()}`;
+  if (name.includes(':01:')) return `${normalEmoji} ${name.replace(':01:', '').trim()}`;
+  return name;
+}
+
 client.on('error', error => {
   console.error('❌ Clientエラー:', error);
 });
@@ -47,7 +54,6 @@ client.on('messageCreate', message => {
   if (message.author.bot) return;
 });
 
-// 権限チェック関数
 function hasPermission(userId) {
   const allowed = allowedUserIds.includes(userId);
   console.log(`権限チェック: ユーザー=${userId}, 許可=${allowed}`);
@@ -56,10 +62,9 @@ function hasPermission(userId) {
 
 client.on('interactionCreate', async interaction => {
   try {
-    // ボタンインタラクションまたは/show-inventoryは権限チェックをスキップ
     if (interaction.isButton()) {
       console.log(`ボタンインタラクション: ユーザー=${interaction.user.id}, カスタムID=${interaction.customId}`);
-    } else if (interaction.isCommand() && interaction.commandName !== 'show-inventory' && !hasPermission(interaction.user.id)) {
+    } else if (interaction.isCommand() && !['show-inventory', 'create-lottery', 'draw-winners'].includes(interaction.commandName) && !hasPermission(interaction.user.id)) {
       return interaction.reply({ content: '❌ このコマンドを使用する権限がありません。', flags: MessageFlags.Ephemeral });
     }
 
@@ -71,7 +76,8 @@ client.on('interactionCreate', async interaction => {
         endsAt = parseJSTDate(endtimeStr);
       } catch (error) {
         console.error('日付解析エラー:', error);
-        return interaction.reply({
+        return await updateLotteryEmbed(interaction.channel);
+      interaction.reply({
           content: `❌ 終了日時の形式が不正です。\n有効な形式: \`YYYY-MM-DD HH:mm\`、\`MM-DD HH:mm\`、\`HH:mm\`\n例: \`2025-06-01 18:00\``,
           flags: MessageFlags.Ephemeral
         });
@@ -927,7 +933,6 @@ async function updateLotteryEmbed(channel, eventId, event) {
   }
 }
 
-// プロセス終了ハンドラ
 process.on('SIGTERM', () => {
   console.log('プロセス終了中...');
   client.destroy();
@@ -939,7 +944,6 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
-// 未処理のエラーハンドリング
 process.on('unhandledRejection', error => {
   console.error('未処理のPromise拒否:', error);
 });
