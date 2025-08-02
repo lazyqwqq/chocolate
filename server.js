@@ -28,24 +28,26 @@ const client = new Client({
 
 client.once('ready', async () => {
   console.log('✅ Bot is ready.');
+  // config.jsonの検証
   if (!allowedUserIds || !Array.isArray(allowedUserIds) || allowedUserIds.length === 0) {
     console.error('⚠️ config.jsonのallowedUserIdsが空または不正です:', allowedUserIds);
   } else {
     console.log('✅ allowedUserIds:', allowedUserIds);
   }
-  console.log('DEBUG: ここまで実行'); 
-  // await registerGlobalCommands(); 
+  console.log('DEBUG: ここまで実行'); // 既存のデバッグログ
+  // await registerGlobalCommands(); // ここを追加
 });
 
 
 function getDisplayName(name) {
-  const priorityEmoji = '🔶'; // 優先
-  const normalEmoji = '🔷';   // 一般
+  const priorityEmoji = '🔶'; // 優先対象
+  const normalEmoji = '🔷';   // 一般対象
   if (name.includes(':00:')) return `${priorityEmoji} ${name.replace(':00:', '').trim()}`;
   if (name.includes(':01:')) return `${normalEmoji} ${name.replace(':01:', '').trim()}`;
   return name;
 }
 
+// エラーハンドリング
 client.on('error', error => {
   console.error('❌ Clientエラー:', error);
 });
@@ -54,6 +56,7 @@ client.on('messageCreate', message => {
   if (message.author.bot) return;
 });
 
+// 権限チェック関数
 function hasPermission(userId) {
   const allowed = allowedUserIds.includes(userId);
   console.log(`権限チェック: ユーザー=${userId}, 許可=${allowed}`);
@@ -62,6 +65,7 @@ function hasPermission(userId) {
 
 client.on('interactionCreate', async interaction => {
   try {
+    // ボタンインタラクションまたは/show-inventoryは権限チェックをスキップ
     if (interaction.isButton()) {
       console.log(`ボタンインタラクション: ユーザー=${interaction.user.id}, カスタムID=${interaction.customId}`);
     } else if (interaction.isCommand() && !['show-inventory', 'create-lottery', 'draw-winners'].includes(interaction.commandName) && !hasPermission(interaction.user.id)) {
@@ -628,6 +632,14 @@ client.on('interactionCreate', async interaction => {
         return interaction.reply({ content: '⚠️ 優先対象の保存に失敗しました。', flags: MessageFlags.Ephemeral });
       }
 
+      // ★★★ 修正箇所 ★★★
+      try {
+        await updateLotteryEmbed(interaction.channel, eventId, event);
+      } catch (error) {
+        console.error('updateLotteryEmbedエラー:', error);
+      }
+      // ★★★ ここまで ★★★
+
       return interaction.reply(`✅ <@${user.id}> を **${event.title}** の優先対象に追加しました。`);
     }
 
@@ -685,6 +697,14 @@ client.on('interactionCreate', async interaction => {
         console.error('lottery.json書き込みエラー:', error);
         return interaction.reply({ content: '⚠️ データの保存に失敗しました。', flags: MessageFlags.Ephemeral });
       }
+
+      // ★★★ 修正箇所 ★★★
+      try {
+        await updateLotteryEmbed(interaction.channel, eventId, event);
+      } catch (error) {
+        console.error('updateLotteryEmbedエラー:', error);
+      }
+      // ★★★ ここまで ★★★
 
       return interaction.reply({ content: response, allowedMentions: { users: [] }});
     }
@@ -933,6 +953,7 @@ async function updateLotteryEmbed(channel, eventId, event) {
   }
 }
 
+// プロセス終了ハンドラ
 process.on('SIGTERM', () => {
   console.log('プロセス終了中...');
   client.destroy();
@@ -944,6 +965,7 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
+// 未処理のエラーハンドリング
 process.on('unhandledRejection', error => {
   console.error('未処理のPromise拒否:', error);
 });
