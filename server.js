@@ -40,10 +40,8 @@ client.once('ready', async () => {
 
 
 function getDisplayName(name) {
-  const priorityEmoji = '🔶'; // 優先対象
-  const normalEmoji = '🔷';   // 一般対象
-  if (name.includes(':00:')) return `${priorityEmoji} ${name.replace(':00:', '').trim()}`;
-  if (name.includes(':01:')) return `${normalEmoji} ${name.replace(':01:', '').trim()}`;
+  if (name.includes(':00:')) return `🔶 ${priorityEmoji} ${name.replace(':00:', '').trim()}`;
+  if (name.includes(':01:')) return `🔷 ${normalEmoji} ${name.replace(':01:', '').trim()}`;
   return name;
 }
 
@@ -971,3 +969,4 @@ process.on('unhandledRejection', error => {
 });
 
 client.login(TOKEN);
+
