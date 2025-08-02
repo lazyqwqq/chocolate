@@ -28,24 +28,20 @@ const client = new Client({
 
 client.once('ready', async () => {
   console.log('✅ Bot is ready.');
-  // config.jsonの検証
   if (!allowedUserIds || !Array.isArray(allowedUserIds) || allowedUserIds.length === 0) {
     console.error('⚠️ config.jsonのallowedUserIdsが空または不正です:', allowedUserIds);
   } else {
     console.log('✅ allowedUserIds:', allowedUserIds);
   }
-  console.log('DEBUG: ここまで実行'); // 既存のデバッグログ
-  // await registerGlobalCommands(); // ここを追加
+  console.log('DEBUG: ここまで実行');
 });
 
-
 function getDisplayName(name) {
-  if (name.includes(':00:')) return `🔶 ${priorityEmoji} ${name.replace(':00:', '').trim()}`;
-  if (name.includes(':01:')) return `🔷 ${normalEmoji} ${name.replace(':01:', '').trim()}`;
+  if (name.includes(':00:')) return `🔶 ${name.replace(':00:', '').trim()}`;
+  if (name.includes(':01:')) return `🔷 ${name.replace(':01:', '').trim()}`;
   return name;
 }
 
-// エラーハンドリング
 client.on('error', error => {
   console.error('❌ Clientエラー:', error);
 });
@@ -54,7 +50,6 @@ client.on('messageCreate', message => {
   if (message.author.bot) return;
 });
 
-// 権限チェック関数
 function hasPermission(userId) {
   const allowed = allowedUserIds.includes(userId);
   console.log(`権限チェック: ユーザー=${userId}, 許可=${allowed}`);
@@ -63,7 +58,6 @@ function hasPermission(userId) {
 
 client.on('interactionCreate', async interaction => {
   try {
-    // ボタンインタラクションまたは/show-inventoryは権限チェックをスキップ
     if (interaction.isButton()) {
       console.log(`ボタンインタラクション: ユーザー=${interaction.user.id}, カスタムID=${interaction.customId}`);
     } else if (interaction.isCommand() && !['show-inventory', 'create-lottery', 'draw-winners'].includes(interaction.commandName) && !hasPermission(interaction.user.id)) {
@@ -78,8 +72,8 @@ client.on('interactionCreate', async interaction => {
         endsAt = parseJSTDate(endtimeStr);
       } catch (error) {
         console.error('日付解析エラー:', error);
-        return await updateLotteryEmbed(interaction.channel);
-      interaction.reply({
+        await updateLotteryEmbed(interaction.channel);
+        return interaction.reply({
           content: `❌ 終了日時の形式が不正です。\n有効な形式: \`YYYY-MM-DD HH:mm\`、\`MM-DD HH:mm\`、\`HH:mm\`\n例: \`2025-06-01 18:00\``,
           flags: MessageFlags.Ephemeral
         });
@@ -283,7 +277,6 @@ client.on('interactionCreate', async interaction => {
           await updateLotteryEmbed(interaction.channel, eventId, event);
         } catch (error) {
           console.error('updateLotteryEmbedエラー:', error);
-          // エンベッド更新エラーは応募成功に影響しない
         }
 
         return interaction.followUp({ content: '✅ 応募を受け付けました！', flags: MessageFlags.Ephemeral });
@@ -331,7 +324,6 @@ client.on('interactionCreate', async interaction => {
         await updateLotteryEmbed(interaction.channel, eventId, event);
       } catch (error) {
         console.error('updateLotteryEmbedエラー:', error);
-        // エンベッド更新エラーは応募取り消し成功に影響しない
       }
 
       return interaction.followUp({ content: '🗑️ 応募を取り消しました。', flags: MessageFlags.Ephemeral });
@@ -408,7 +400,6 @@ client.on('interactionCreate', async interaction => {
       const input = interaction.options.getString('petal');
       const targetUser = interaction.options.getUser('user') ?? interaction.user;
 
-      // 他ユーザーの更新はallowedUserIdsに限定
       if (targetUser.id !== interaction.user.id && !hasPermission(interaction.user.id)) {
         return interaction.reply({ content: '❌ 他ユーザーの装備を更新する権限がありません。', flags: MessageFlags.Ephemeral });
       }
@@ -630,13 +621,11 @@ client.on('interactionCreate', async interaction => {
         return interaction.reply({ content: '⚠️ 優先対象の保存に失敗しました。', flags: MessageFlags.Ephemeral });
       }
 
-      // ★★★ 修正箇所 ★★★
       try {
         await updateLotteryEmbed(interaction.channel, eventId, event);
       } catch (error) {
         console.error('updateLotteryEmbedエラー:', error);
       }
-      // ★★★ ここまで ★★★
 
       return interaction.reply(`✅ <@${user.id}> を **${event.title}** の優先対象に追加しました。`);
     }
@@ -696,13 +685,11 @@ client.on('interactionCreate', async interaction => {
         return interaction.reply({ content: '⚠️ データの保存に失敗しました。', flags: MessageFlags.Ephemeral });
       }
 
-      // ★★★ 修正箇所 ★★★
       try {
         await updateLotteryEmbed(interaction.channel, eventId, event);
       } catch (error) {
         console.error('updateLotteryEmbedエラー:', error);
       }
-      // ★★★ ここまで ★★★
 
       return interaction.reply({ content: response, allowedMentions: { users: [] }});
     }
@@ -801,12 +788,12 @@ async function registerGlobalCommands() {
         opt.setName('user').setDescription('対象ユーザー').setRequired(true)),
 
     new SlashCommandBuilder()
-  .setName('prioritize')
-  .setDescription('抽選イベントでユーザーを優先対象に設定する')
-  .addStringOption(opt =>
-    opt.setName('eventid').setDescription('イベントID').setRequired(true))
-  .addUserOption(opt =>
-    opt.setName('user').setDescription('優先対象ユーザー').setRequired(true)),
+      .setName('prioritize')
+      .setDescription('抽選イベントでユーザーを優先対象に設定する')
+      .addStringOption(opt =>
+        opt.setName('eventid').setDescription('イベントID').setRequired(true))
+      .addUserOption(opt =>
+        opt.setName('user').setDescription('優先対象ユーザー').setRequired(true)),
 
     new SlashCommandBuilder()
       .setName('show-inventory')
@@ -919,14 +906,14 @@ async function updateLotteryEmbed(channel, eventId, event) {
     const prioritized = new Set(event.prioritized ?? []);
     const lurer = new Set(event.lurer ?? []);
 
-    const lurerList = [...allParticipants].filter(id => lurer.has(id));
-    const prioritizedList = [...allParticipants].filter(id => prioritized.has(id) && !lurer.has(id));
-    const regularList = [...allParticipants].filter(id => !prioritized.has(id) && !lurer.has(id));
+    const lurerList = [...allParticipants].filter(id => lurer.has(id)).map(id => getDisplayName(`<@${id}:00:>`));
+    const prioritizedList = [...allParticipants].filter(id => prioritized.has(id) && !lurer.has(id)).map(id => getDisplayName(`<@${id}:00:>`));
+    const regularList = [...allParticipants].filter(id => !prioritized.has(id) && !lurer.has(id)).map(id => getDisplayName(`<@${id}:01:>`));
 
     const lines = [
-      ...(lurerList.map(id => `<:golden_leaf:1390654981933105203><@${id}>`)),
-      ...(prioritizedList.map(id => `<:00:1388842893782945933><@${id}>`)),
-      ...(regularList.map(id => `<:01:1388842911751471217><@${id}>`))
+      ...lurerList,
+      ...prioritizedList,
+      ...regularList
     ];
 
     const participantText = lines.length > 0 ? lines.join('\n') : '（なし）';
@@ -951,7 +938,6 @@ async function updateLotteryEmbed(channel, eventId, event) {
   }
 }
 
-// プロセス終了ハンドラ
 process.on('SIGTERM', () => {
   console.log('プロセス終了中...');
   client.destroy();
@@ -963,10 +949,8 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
-// 未処理のエラーハンドリング
 process.on('unhandledRejection', error => {
   console.error('未処理のPromise拒否:', error);
 });
 
 client.login(TOKEN);
-
