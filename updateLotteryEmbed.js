@@ -1,4 +1,3 @@
-
 const fs = require('fs');
 const { EmbedBuilder } = require('discord.js');
 
@@ -21,6 +20,15 @@ async function updateLotteryEmbed(channel) {
 
   if (!lotteryData) return;
 
+  const participants = Object.values(lotteryData).flatMap(event => 
+    event.participants.map(id => {
+      if (event.lurer?.includes(id) || event.prioritized?.includes(id)) {
+        return getDisplayName(`<@${id}:00:>`);
+      }
+      return getDisplayName(`<@${id}:01:>`);
+    })
+  );
+
   const embed = new EmbedBuilder()
     .setTitle('🎟️ 現在の抽選情報')
     .setColor(0x00AE86)
@@ -28,9 +36,11 @@ async function updateLotteryEmbed(channel) {
       { name: '📅 終了時刻', value: lotteryData.endTime || '-', inline: true },
       { name: '🌍 バイオーム', value: lotteryData.biome || '-', inline: true },
       { name: '📊 必要スコア', value: lotteryData.score || '-', inline: true },
-      { name: '👥 参加者', value: (lotteryData.participants?.length > 0
-          ? lotteryData.participants.map(getDisplayName).join('\n')
-          : '（なし）'), inline: false }
+      { 
+        name: '👥 参加者', 
+        value: participants.length > 0 ? participants.join('\n') : '（なし）', 
+        inline: false 
+      }
     )
     .setFooter({ text: `イベントID: ${lotteryData.eventId || '-'}` });
 
@@ -48,7 +58,6 @@ async function updateLotteryEmbed(channel) {
     }
   }
 
-  // 新規送信
   const sent = await channel.send({ embeds: [embed] });
   fs.writeFileSync(DISPLAY_PATH, JSON.stringify({ messageId: sent.id, channelId: channel.id }, null, 2));
   console.log('✅ Embed メッセージを新規送信しました');
