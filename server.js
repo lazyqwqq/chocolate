@@ -33,6 +33,16 @@ client.once('ready', async () => {
   } else {
     console.log('✅ allowedUserIds:', allowedUserIds);
   }
+  if (fs.existsSync('score.json')) {
+    try {
+      const scoreData = JSON.parse(fs.readFileSync('score.json', 'utf-8'));
+      console.log('✅ score.json 読み込み成功:', Object.keys(scoreData).length, 'ユーザーデータ');
+    } catch (error) {
+      console.error('❌ score.json 読み込みエラー（起動時）:', error);
+    }
+  } else {
+    console.warn('⚠️ score.json が存在しません。初回起動時に作成されます。');
+  }
   console.log('DEBUG: ここまで実行');
 });
 
@@ -60,7 +70,7 @@ client.on('interactionCreate', async interaction => {
   try {
     if (interaction.isButton()) {
       console.log(`ボタンインタラクション: ユーザー=${interaction.user.id}, カスタムID=${interaction.customId}`);
-    } else if (interaction.isCommand() && !['show-inventory', 'create-lottery', 'draw-winners'].includes(interaction.commandName) && !hasPermission(interaction.user.id)) {
+    } else if (interaction.isCommand() && !['show-inventory', 'create-lottery', 'draw-winner'].includes(interaction.commandName) && !hasPermission(interaction.user.id)) {
       return interaction.reply({ content: '❌ このコマンドを使用する権限がありません。', flags: MessageFlags.Ephemeral });
     }
 
@@ -127,6 +137,7 @@ client.on('interactionCreate', async interaction => {
     }
 
     if (interaction.commandName === 'draw-winner') {
+      console.log(`🎲 draw-winner 実行: ユーザー=${interaction.user.id}, eventId=${interaction.options.getString('eventid')}`);
       const eventId = interaction.options.getString('eventid');
       const winnerCount = interaction.options.getInteger('winners');
 
@@ -185,13 +196,14 @@ client.on('interactionCreate', async interaction => {
       lotteryData[eventId] = event;
       try {
         fs.writeFileSync('lottery.json', JSON.stringify(lotteryData, null, 2), 'utf-8');
+        console.log(`✅ lottery.json 更新成功: eventId=${eventId}, 当選者=${winners.length}`);
       } catch (error) {
         console.error('lottery.json書き込みエラー:', error);
         return interaction.reply({ content: '⚠️ 抽選結果の保存に失敗しました。', flags: MessageFlags.Ephemeral });
       }
       
       await interaction.reply({
-        content:`🎊 **${event.title}** の抽選結果: \n🏆 **当選者（${winners.length}名）**: \n${winners.map(id => `・<@${id}>`).join(' ')} \n😢 **落選者（${losers.length}名）**:\n${losers.length > 0 ? losers.map(id => `・<@${id}>`).join(' ') : '（なし）'}`,
+        content:`🎊 **${event.title}** の抽選結果: \n🏆 **当選者（${winners.length}名）**: \n${winners.map(id => `・${getDisplayName(`<@${id}:00:>`)}`).join(' ')} \n😢 **落選者（${losers.length}名）**:\n${losers.length > 0 ? losers.map(id => `・${getDisplayName(`<@${id}:01:>`)}`).join(' ') : '（なし）'}`,
         allowedMentions: { users: [] }
       });
     }
@@ -230,6 +242,9 @@ client.on('interactionCreate', async interaction => {
         try {
           if (fs.existsSync('score.json')) {
             scoreData = JSON.parse(fs.readFileSync('score.json', 'utf-8'));
+          } else {
+            console.error(`score.jsonが存在しません: eventId=${eventId}`);
+            return interaction.followUp({ content: '❌ スコアデータが存在しません。', flags: MessageFlags.Ephemeral });
           }
         } catch (error) {
           console.error('score.json読み込みエラー:', error);
@@ -404,6 +419,20 @@ client.on('interactionCreate', async interaction => {
         return interaction.reply({ content: '❌ 他ユーザーの装備を更新する権限がありません。', flags: MessageFlags.Ephemeral });
       }
 
+      let scoreData = {};
+      try {
+        if (fs.existsSync('score.json')) {
+          scoreData = JSON.parse(fs.readFileSync('score.json', 'utf-8'));
+          console.log(`✅ score.json 読み込み成功: ユーザー数=${Object.keys(scoreData).length}`);
+        } else {
+          console.warn('⚠️ score.json が存在しません。初回作成します。');
+          scoreData = {};
+        }
+      } catch (error) {
+        console.error('❌ score.json 読み込みエラー:', error);
+        return interaction.reply({ content: '❌ スコアデータの読み込みに失敗しました。管理者にお問い合わせください。', flags: MessageFlags.Ephemeral });
+      }
+
       let equipmentData = {};
       try {
         equipmentData = JSON.parse(fs.readFileSync('equipment.json', 'utf-8'));
@@ -467,18 +496,6 @@ client.on('interactionCreate', async interaction => {
         biomeDetails[biome] = result;
       }
 
-      let scoreData = {};
-      try {
-        if (fs.existsSync('score.json')) {
-          scoreData = JSON.parse(fs.readFileSync('score.json', 'utf-8'));
-        }
-      } catch (error) {
-        console.error('score.json読み込みエラー:', error);
-        return interaction.reply({ content: '❌ スコアデータの読み込みに失敗しました。', flags: MessageFlags.Ephemeral });
-      }
-
-      if (!scoreData[targetUser.id]) scoreData[targetUser.id] = {};
-
       scoreData[targetUser.id] = {
         ...scoreData[targetUser.id],
         ...biomeScores,
@@ -487,9 +504,10 @@ client.on('interactionCreate', async interaction => {
 
       try {
         fs.writeFileSync('score.json', JSON.stringify(scoreData, null, 2), 'utf-8');
+        console.log(`✅ score.json 更新成功: ユーザー=${targetUser.id}, インベントリ=${JSON.stringify(inventory)}`);
       } catch (error) {
-        console.error('score.json書き込みエラー:', error);
-        return interaction.reply({ content: '⚠️ インベントリの保存に失敗しました。', flags: MessageFlags.Ephemeral });
+        console.error('❌ score.json 書き込みエラー:', error);
+        return interaction.reply({ content: '⚠️ インベントリの保存に失敗しました。管理者にお問い合わせください。', flags: MessageFlags.Ephemeral });
       }
 
       if (
@@ -556,10 +574,14 @@ client.on('interactionCreate', async interaction => {
       try {
         if (fs.existsSync('score.json')) {
           scoreData = JSON.parse(fs.readFileSync('score.json', 'utf-8'));
+          console.log(`✅ score.json 読み込み成功: ユーザー数=${Object.keys(scoreData).length}`);
+        } else {
+          console.warn('⚠️ score.json が存在しません。');
+          return interaction.reply({ content: '❌ スコアデータが存在しません。管理者にお問い合わせください。', flags: MessageFlags.Ephemeral });
         }
       } catch (error) {
-        console.error('score.json読み込みエラー:', error);
-        return interaction.reply({ content: '❌ スコアデータの読み込みに失敗しました。', flags: MessageFlags.Ephemeral });
+        console.error('❌ score.json 読み込みエラー:', error);
+        return interaction.reply({ content: '❌ スコアデータの読み込みに失敗しました。管理者にお問い合わせください。', flags: MessageFlags.Ephemeral });
       }
 
       const userData = scoreData[targetUser.id];
