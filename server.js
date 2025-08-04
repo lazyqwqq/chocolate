@@ -219,7 +219,7 @@ client.on('interactionCreate', async interaction => {
             const timestamp = DateTime.now().setZone('Asia/Tokyo').toFormat('yyyy-MM-dd HH:mm:ss');
             const embed = new EmbedBuilder()
               .setTitle('抽選制限ログ')
-              .setDescription(`ユーザーA (<@${userA}>) が参加中のため、ユーザーB (<@${userB}>) はイベント \`${eventId}\` で確定落選`)
+              .setDescription(`ユーザーA (<@${userA}>) が参加中のため、ユーザーB (<@${userB}>) はイベント \`${event.title} (${eventId})\` で確定落選`)
               .setColor('#FF4500')
               .setTimestamp()
               .setFooter({ text: `ギルド: ${interaction.guildId}` });
@@ -265,7 +265,7 @@ client.on('interactionCreate', async interaction => {
       }
       
       await interaction.reply({
-        content:`🎊 **${event.title}** の抽選結果: \n🏆 **当選者（${winners.length}名）**: \n${winners.map(id => `・${getDisplayName(`<@${id}:00:>`)}`).join(' ')} \n😢 **落選者（${losers.length}名）**:\n${losers.length > 0 ? losers.map(id => `・${getDisplayName(`<@${id}:01:>`)}`).join(' ') : '（なし）'}${userAInParticipants && losers.includes(userB) ? `\n⚠️ <@${userB}> は <@${userA}> の参加により確定落選` : ''}`,
+        content: `🎊 **${event.title}** の抽選結果: \n🏆 **当選者（${winners.length}名）**: \n${winners.map(id => `・${getDisplayName(`<@${id}:00:>`)}`).join(' ')} \n😢 **落選者（${losers.length}名）**:\n${losers.length > 0 ? losers.map(id => `・${getDisplayName(`<@${id}:01:>`)}`).join(' ') : '（なし）'}`,
         allowedMentions: { users: [] }
       });
     }
