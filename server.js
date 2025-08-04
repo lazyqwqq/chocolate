@@ -12,10 +12,10 @@ app.listen(port, () => {
 
 require('dotenv').config();
 const fs = require('fs');
-const {DateTime} = require('luxon');
+const { DateTime } = require('luxon');
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags, EmbedBuilder } = require('discord.js');
 const TOKEN = process.env.TOKEN, CLIENT_ID = process.env.CLIENT_ID;
-const {allowedUserIds, lurerUserIds} = require('./config.json');
+const { allowedUserIds, lurerUserIds, logGuildId, logChannelId } = require('./config.json');
 
 const client = new Client({
   intents: [
@@ -32,6 +32,11 @@ client.once('ready', async () => {
     console.error('⚠️ config.jsonのallowedUserIdsが空または不正です:', allowedUserIds);
   } else {
     console.log('✅ allowedUserIds:', allowedUserIds);
+  }
+  if (!logGuildId || !logChannelId) {
+    console.warn('⚠️ config.jsonにlogGuildIdまたはlogChannelIdが設定されていません。ログ送信は無効です。');
+  } else {
+    console.log(`✅ ログ送信先: ギルド=${logGuildId}, チャンネル=${logChannelId}`);
   }
   if (fs.existsSync('score.json')) {
     try {
@@ -52,6 +57,31 @@ function getDisplayName(name) {
   return name;
 }
 
+async function logCommandUsage(interaction) {
+  if (!logGuildId || !logChannelId) return;
+  try {
+    const channel = await client.channels.fetch(logChannelId);
+    if (!channel) {
+      console.error(`❌ ログチャンネルが見つかりません: channelId=${logChannelId}`);
+      return;
+    }
+    const timestamp = DateTime.now().setZone('Asia/Tokyo').toFormat('yyyy-MM-dd HH:mm:ss');
+    const user = `<@${interaction.user.id}>`;
+    const commandName = interaction.commandName;
+    const eventId = interaction.options.getString('eventid') || '-';
+    const embed = new EmbedBuilder()
+      .setTitle('コマンド使用ログ')
+      .setDescription(`**ユーザー**: ${user}\n**コマンド**: \`${commandName}\`\n**イベントID**: ${eventId}`)
+      .setColor(commandName === 'draw-winner' ? '#FFD700' : '#00B0F4')
+      .setTimestamp()
+      .setFooter({ text: `ギルド: ${interaction.guildId}` });
+    await channel.send({ embeds: [embed] });
+    console.log(`✅ ログ送信: ${timestamp} | ${user} | ${commandName} | eventId=${eventId}`);
+  } catch (error) {
+    console.error('❌ ログ送信エラー:', error);
+  }
+}
+
 client.on('error', error => {
   console.error('❌ Clientエラー:', error);
 });
@@ -68,6 +98,10 @@ function hasPermission(userId) {
 
 client.on('interactionCreate', async interaction => {
   try {
+    if (interaction.isCommand()) {
+      await logCommandUsage(interaction);
+    }
+
     if (interaction.isButton()) {
       console.log(`ボタンインタラクション: ユーザー=${interaction.user.id}, カスタムID=${interaction.customId}`);
     } else if (interaction.isCommand() && !['show-inventory', 'create-lottery', 'draw-winner'].includes(interaction.commandName) && !hasPermission(interaction.user.id)) {
@@ -173,19 +207,47 @@ client.on('interactionCreate', async interaction => {
       const shuffledOthers = others.sort(() => 0.5 - Math.random());
 
       let winners = [];
+      const userA = '1346945401474908251';
+      const userB = '707875265556119562';
+      const userAInParticipants = participants.includes(userA);
+
+      if (userAInParticipants) {
+        console.log(`⚠️ ユーザーA (${userA}) が参加中のため、ユーザーB (${userB}) は確定落選`);
+        if (logGuildId && logChannelId) {
+          try {
+            const channel = await client.channels.fetch(logChannelId);
+            const timestamp = DateTime.now().setZone('Asia/Tokyo').toFormat('yyyy-MM-dd HH:mm:ss');
+            const embed = new EmbedBuilder()
+              .setTitle('抽選制限ログ')
+              .setDescription(`ユーザーA (<@${userA}>) が参加中のため、ユーザーB (<@${userB}>) はイベント \`${eventId}\` で確定落選`)
+              .setColor('#FF4500')
+              .setTimestamp()
+              .setFooter({ text: `ギルド: ${interaction.guildId}` });
+            await channel.send({ embeds: [embed] });
+            console.log(`✅ 制限ログ送信: ${timestamp} | eventId=${eventId}`);
+          } catch (error) {
+            console.error('❌ 制限ログ送信エラー:', error);
+          }
+        }
+      }
 
       if (!winnerCount || winnerCount >= participants.length) {
         winners = [...lurer, ...prioritized, ...shuffledOthers];
+        if (userAInParticipants) {
+          winners = winners.filter(id => id !== userB);
+        }
       } else {
         winners = [...lurer];
-        const remainingAfterSpecial = winnerCount - winners.length;
-        
-        if (remainingAfterSpecial > 0) {
-          winners.push(...prioritized.slice(0, remainingAfterSpecial));
-          const remainingAfterPrioritized = winnerCount - winners.length;
+        let remaining = winnerCount - winners.length;
 
-          if (remainingAfterPrioritized > 0) {
-            winners.push(...shuffledOthers.slice(0, remainingAfterPrioritized));
+        if (remaining > 0) {
+          const availablePrioritized = userAInParticipants ? prioritized.filter(id => id !== userB) : prioritized;
+          winners.push(...availablePrioritized.slice(0, remaining));
+          remaining = winnerCount - winners.length;
+
+          if (remaining > 0) {
+            const availableOthers = userAInParticipants ? shuffledOthers.filter(id => id !== userB) : shuffledOthers;
+            winners.push(...availableOthers.slice(0, remaining));
           }
         }
       }
@@ -203,7 +265,7 @@ client.on('interactionCreate', async interaction => {
       }
       
       await interaction.reply({
-        content:`🎊 **${event.title}** の抽選結果: \n🏆 **当選者（${winners.length}名）**: \n${winners.map(id => `・${getDisplayName(`<@${id}:00:>`)}`).join(' ')} \n😢 **落選者（${losers.length}名）**:\n${losers.length > 0 ? losers.map(id => `・${getDisplayName(`<@${id}:01:>`)}`).join(' ') : '（なし）'}`,
+        content:`🎊 **${event.title}** の抽選結果: \n🏆 **当選者（${winners.length}名）**: \n${winners.map(id => `・${getDisplayName(`<@${id}:00:>`)}`).join(' ')} \n😢 **落選者（${losers.length}名）**:\n${losers.length > 0 ? losers.map(id => `・${getDisplayName(`<@${id}:01:>`)}`).join(' ') : '（なし）'}${userAInParticipants && losers.includes(userB) ? `\n⚠️ <@${userB}> は <@${userA}> の参加により確定落選` : ''}`,
         allowedMentions: { users: [] }
       });
     }
