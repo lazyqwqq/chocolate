@@ -208,11 +208,11 @@ client.on('interactionCreate', async interaction => {
 
       let winners = [];
       const userA = '1346945401474908251';
-      const userB = '910080264158470175';
+      const userB = '707875265556119562';
       const userAInParticipants = participants.includes(userA);
 
       if (userAInParticipants) {
-        console.log(`⚠️ ユーザーA (${userA}) が参加中のため、ユーザーB (${userB}) は確定落選`);
+        console.log(`⚠️ ${userA} が参加中のため、${userB} は確定落選`);
         if (logGuildId && logChannelId) {
           try {
             const channel = await client.channels.fetch(logChannelId);
