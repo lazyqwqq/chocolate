@@ -208,7 +208,7 @@ client.on('interactionCreate', async interaction => {
 
       let winners = [];
       const userA = '1346945401474908251';
-      const userB = '707875265556119562';
+      const userB = '910080264158470175';
       const userAInParticipants = participants.includes(userA);
 
       if (userAInParticipants) {
