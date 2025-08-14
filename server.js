@@ -1044,4 +1044,14 @@ process.on('unhandledRejection', error => {
   console.error('未処理のPromise拒否:', error);
 });
 
+console.log('DEBUG: TOKENが読み込まれているか', TOKEN ? 'OK' : '空です');
+
+try {
+  client.login(TOKEN)
+    .then(() => console.log('✅ login() 呼び出し成功'))
+    .catch(err => console.error('❌ login() でエラー発生:', err));
+} catch (err) {
+  console.error('❌ login() 実行前にエラー:', err);
+}
+
 client.login(TOKEN);
